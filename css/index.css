@@ -29,7 +29,7 @@ h1, h2, p { margin: 0; }
 .camera-screen { position: relative; height: 100%; overflow: hidden; }
 
 /* ===== Barre du haut ===== */
-.topbar { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; padding: calc(var(--safe-top) + 4px) calc(var(--safe-right) + 10px) 4px calc(var(--safe-left) + 10px); min-height: 52px; background: linear-gradient(rgba(0, 0, 0, .55), transparent); }
+.topbar { position: absolute; top: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; padding: calc(var(--safe-top) + 4px) calc(var(--safe-right) + 10px) 4px calc(var(--safe-left) + 10px); min-height: 52px; background: linear-gradient(rgba(0, 0, 0, .3), transparent); }
 .icon-btn { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--fg); transition: background .15s, color .15s; }
 .icon-btn:active { background: var(--surface-2); }
 .icon-btn.is-on { color: var(--accent); }
@@ -64,7 +64,7 @@ h1, h2, p { margin: 0; }
 .zoom-btn.is-active { background: rgba(255, 255, 255, .16); color: var(--accent); }
 
 /* ===== Dock (outils + déclencheur) ===== */
-.dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left); background: rgba(12, 13, 16, .78); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+.dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left); background: linear-gradient(to bottom, rgba(12, 13, 16, 0), rgba(12, 13, 16, .38) 35%); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .panel { padding: 10px 0 4px; }
 .strip { display: flex; gap: 8px; overflow-x: auto; padding: 0 12px 6px; scrollbar-width: none; scroll-snap-type: x proximity; }
 .strip::-webkit-scrollbar { display: none; }
@@ -242,3 +242,9 @@ button, .cell { -webkit-touch-callout: none; }
 .pill { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 8px 0 14px; border-radius: 999px; background: rgba(0, 0, 0, .6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); font-size: .82rem; font-weight: 600; }
 .pill [data-icon], .pill svg { width: 24px; height: 24px; padding: 4px; border-radius: 50%; background: rgba(255, 255, 255, .18); }
 .chip--none { color: var(--muted); }
+
+/* Lisibilité des éléments posés sur l'image, maintenant que le fond du panneau est presque transparent. */
+.tab, .mode, .strip-label, .adjust-value, .slider-label, .slider-value { text-shadow: 0 1px 4px rgba(0, 0, 0, .7); }
+.icon-btn svg, .tab--compare svg { filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .6)); }
+.chip { background: rgba(30, 33, 39, .62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.chip[aria-selected="true"] { background: var(--fg); }

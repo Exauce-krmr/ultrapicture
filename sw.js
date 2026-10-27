@@ -1,6 +1,6 @@
 // Service worker d'UltraPicture : l'application fonctionne hors ligne après la première visite.
 // Incrémenter VERSION à chaque déploiement pour renouveler le cache.
-const VERSION = 'ultrapicture-v4';
+const VERSION = 'ultrapicture-v5';
 const SHELL = [
     './', 'index.html', 'manifest.webmanifest', 'css/index.css',
     'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
