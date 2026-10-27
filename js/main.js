@@ -67,6 +67,7 @@ let cameraReady = false;
 let zoom = 1;
 let torchOn = false;
 let busy = false;
+let finalizing = false; // fichier vidéo en cours de finalisation : pas de nouvel enregistrement avant la fin
 let cancelCountdown = null;
 let recordingTimer = 0;
 let arId = null;
@@ -259,9 +260,24 @@ async function capturePhoto() {
     busy = true;
     haptic();
     screen.flash();
+    let canvas;
     try {
+        // Seul le rendu de l'image bloque l'interface ; l'encodage et l'enregistrement se font en arrière-plan.
+        await nextFrames(1); // laisse le flash s'afficher avant le calcul
         const s = settings.get();
-        const canvas = renderer.snapshot({ width: s.photoWidth, timestamp: s.timestamp });
+        canvas = renderer.snapshot({ width: s.photoWidth, timestamp: s.timestamp });
+    } catch (err) {
+        console.error('[capture]', err);
+        toast.show(MESSAGES.PHOTO_FAILED);
+        return;
+    } finally {
+        busy = false;
+    }
+    await savePhoto(canvas, settings.get());
+}
+
+async function savePhoto(canvas, s) {
+    try {
         const blob = await canvasToBlob(canvas, { format: s.photoFormat, quality: s.jpegQuality });
         const record = { type: 'photo', blob, mime: blob.type || PHOTO_FORMATS[s.photoFormat].mime, width: canvas.width, height: canvas.height, createdAt: Date.now() };
         try {
@@ -276,8 +292,6 @@ async function capturePhoto() {
     } catch (err) {
         console.error('[capture]', err);
         toast.show(MESSAGES.PHOTO_FAILED);
-    } finally {
-        busy = false;
     }
 }
 
@@ -314,15 +328,20 @@ async function startRecording() {
     }
 }
 
+/** L'interface repasse tout de suite en « prêt » ; la finalisation du fichier se fait ensuite en arrière-plan. */
 async function stopRecording() {
     if (!recorder.active) return;
-    busy = true;
     clearInterval(recordingTimer);
+    const canvas = renderer.canvas;
+    const size = { width: canvas.width, height: canvas.height };
+    const thumbPromise = makeThumbnail(canvas); // l'image est copiée tout de suite, l'encodage JPEG suit
+    const stopped = recorder.stop();
+    finalizing = true;
+    screen.setRecording(false);
+    toast.show(MESSAGES.VIDEO_SAVING, 0);
     try {
-        const canvas = renderer.canvas;
-        const thumb = await makeThumbnail(canvas);
-        const { blob, durationMs } = await recorder.stop();
-        const record = { type: 'video', blob, thumb, mime: blob.type, width: canvas.width, height: canvas.height, durationMs, createdAt: Date.now() };
+        const [thumb, { blob, durationMs }] = await Promise.all([thumbPromise, stopped]);
+        const record = { type: 'video', blob, thumb, mime: blob.type, ...size, durationMs, createdAt: Date.now() };
         try {
             await store.add(record);
             screen.setThumbnail(thumb);
@@ -335,9 +354,8 @@ async function stopRecording() {
         console.error('[recorder] arrêt', err);
         toast.show(MESSAGES.VIDEO_FAILED);
     } finally {
-        screen.setRecording(false);
+        finalizing = false;
         applyDisplay();
-        busy = false;
     }
 }
 
@@ -346,7 +364,7 @@ async function onShutter() {
     if (!cameraReady) return;
     if (cancelCountdown) { cancelCountdown(); return; }
     if (mode === 'video' && recorder.active) { await stopRecording(); return; }
-    if (busy) return;
+    if (busy || (mode === 'video' && finalizing)) return;
 
     const seconds = settings.get().timer;
     if (seconds > 0 && !(await countdown(seconds))) return;
@@ -357,6 +375,7 @@ async function onShutter() {
 async function suspend() {
     cancelCountdown?.();
     if (recorder.active) await stopRecording();
+    recorder.release();
     renderer.stop();
     camera.stop();
     cameraReady = false;
@@ -375,7 +394,13 @@ function init() {
         onShutter,
         onFlip: () => { if (!recorder.active && !busy) flipCamera(); },
         onGallery: () => gallery.open(),
-        onMode: (next) => { if (recorder.active || busy) return; mode = next; screen.setMode(mode); },
+        onMode: (next) => {
+            if (recorder.active || busy) return;
+            mode = next;
+            screen.setMode(mode);
+            // Micro ouvert dès l'arrivée en mode vidéo (démarrage instantané), refermé en revenant en photo.
+            if (mode === 'video' && settings.get().audio) recorder.prepare(); else recorder.release();
+        },
         onCompare: (on) => renderer.setCompare(on),
         onZoom: setZoom,
         onPoint: (x, y) => {

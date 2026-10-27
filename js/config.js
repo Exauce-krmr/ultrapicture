@@ -75,6 +75,7 @@ export const PHOTO_FORMATS = Object.freeze({
 export const MESSAGES = Object.freeze({
     PHOTO_SAVED: 'Photo enregistrée dans la galerie.',
     PHOTO_FAILED: "Impossible d'enregistrer la photo.",
+    VIDEO_SAVING: 'Finalisation de la vidéo\u2026',
     VIDEO_SAVED: 'Vidéo enregistrée dans la galerie.',
     VIDEO_FAILED: "Impossible d'enregistrer la vidéo.",
     VIDEO_UNSUPPORTED: "L'enregistrement vidéo n'est pas pris en charge ici.",

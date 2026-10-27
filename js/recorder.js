@@ -21,9 +21,31 @@ export class Recorder {
     #chunks = [];
     #startedAt = 0;
     #streams = [];
+    #mic = null;
+    #micTried = false;
 
     get active() { return this.#recorder?.state === 'recording'; }
     get elapsedMs() { return this.active ? performance.now() - this.#startedAt : 0; }
+
+    /** Ouvre le micro à l'avance (passage en mode vidéo) : l'ouverture prend parfois plusieurs centaines de ms. */
+    async prepare() {
+        if (this.#mic) return true;
+        this.#micTried = true;
+        try {
+            this.#mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+            return true;
+        } catch (err) {
+            console.warn('[recorder] micro indisponible', err);
+            return false;
+        }
+    }
+
+    /** Ferme le micro (sortie du mode vidéo, mise en arrière-plan). */
+    release() {
+        this.#mic?.getTracks().forEach((t) => t.stop());
+        this.#mic = null;
+        this.#micTried = false;
+    }
 
     /** @returns {Promise<{audioFailed: boolean}>} */
     async start(canvas, { withAudio }) {
@@ -32,14 +54,10 @@ export class Recorder {
         let audioFailed = false;
 
         if (withAudio) {
-            try {
-                const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-                this.#streams.push(mic);
-                mic.getAudioTracks().forEach((t) => stream.addTrack(t));
-            } catch (err) {
-                console.warn('[recorder] micro indisponible', err);
-                audioFailed = true;
-            }
+            // Le micro est normalement déjà ouvert (prepare) : le démarrage est alors immédiat.
+            if (!this.#mic && !this.#micTried) await this.prepare();
+            if (this.#mic) this.#mic.getAudioTracks().forEach((t) => stream.addTrack(t));
+            else audioFailed = true;
         }
 
         const mimeType = pickVideoMimeType();
@@ -61,7 +79,8 @@ export class Recorder {
         return new Promise((resolve, reject) => {
             recorder.onerror = (e) => reject(e.error ?? new Error('Erreur MediaRecorder'));
             recorder.onstop = () => {
-                this.#streams.forEach((s) => s.getTracks().forEach((t) => t.stop()));
+                // Seul le flux vidéo du canvas est arrêté ; le micro reste ouvert pour l'enregistrement suivant.
+                this.#streams.forEach((s) => s.getVideoTracks().forEach((t) => t.stop()));
                 this.#streams = [];
                 const type = recorder.mimeType || this.#chunks[0]?.type || 'video/webm';
                 resolve({ blob: new Blob(this.#chunks, { type }), durationMs });
