@@ -72,11 +72,20 @@ export class ToolPanel {
             () => this.h.onLook(look.category !== 'looks' && look.id === lookId ? 'original' : look.id));
         const strip = (label, chips) => el('div', { class: 'strip', role: 'listbox', 'aria-label': label }, chips);
 
-        const parts = [strip(STRIP_LABELS[category], looks.map(lookChip))];
+        // « Aucun » en tête de liste : retirer l'effet ne demande plus de chercher « Original » dans un autre onglet.
+        const none = (selected, onClick) => chip('Aucun', selected, onClick);
+        const noneChip = (selected, onClick) => { const c = none(selected, onClick); c.classList.add('chip--none'); return c; };
+        const parts = [strip(STRIP_LABELS[category], [
+            ...(category === 'looks' ? [] : [noneChip(lookId === 'original', () => this.h.onLook('original'))]),
+            ...looks.map(lookChip),
+        ])];
         if (category === 'fun') {
             parts.push(el('p', { class: 'strip-label' }, 'Visage (réalité augmentée)'));
-            parts.push(strip('Accessoires de visage', Object.entries(AR_ACCESSORIES).map(([id, { label }]) =>
-                chip(label, id === arId, () => this.h.onAr(id === arId ? null : id)))));
+            parts.push(strip('Accessoires de visage', [
+                noneChip(!arId, () => this.h.onAr(null)),
+                ...Object.entries(AR_ACCESSORIES).map(([id, { label }]) =>
+                    chip(label, id === arId, () => this.h.onAr(id === arId ? null : id))),
+            ]));
         }
         if (category !== 'looks' && current?.effect && current.category === category) {
             const slider = el('input', {

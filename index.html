@@ -32,16 +32,21 @@
             </header>
 
             <div class="stage" id="stage">
-                <canvas id="preview" aria-label="Aperçu de la caméra"></canvas>
-                <video id="source" playsinline muted hidden></video>
-                <div class="grid-overlay" id="grid-overlay" hidden aria-hidden="true"></div>
-                <canvas id="histogram" class="histogram" width="128" height="44" hidden aria-label="Histogramme de luminosité"></canvas>
-                <div class="hud">
-                    <span id="rec-chip" class="hud-chip hud-chip--rec" hidden></span>
-                    <span id="fps-chip" class="hud-chip" hidden></span>
-                    <span id="compare-chip" class="hud-chip" hidden>Original</span>
+                <!-- Cadre de l'image : sa taille suit le format choisi ; le reste de l'écran est le fond sombre. -->
+                <div class="frame" id="frame">
+                    <canvas id="preview" aria-label="Aperçu de la caméra"></canvas>
+                    <video id="source" playsinline muted hidden></video>
+                    <div class="grid-overlay" id="grid-overlay" hidden aria-hidden="true"></div>
+                    <div class="hud">
+                        <span id="rec-chip" class="hud-chip hud-chip--rec" hidden></span>
+                        <span id="fps-chip" class="hud-chip" hidden></span>
+                        <span id="compare-chip" class="hud-chip" hidden>Original</span>
+                    </div>
+                    <div class="countdown" id="countdown" hidden aria-live="assertive"></div>
+                    <div id="flash" class="flash" aria-hidden="true"></div>
                 </div>
-                <div class="countdown" id="countdown" hidden aria-live="assertive"></div>
+                <canvas id="histogram" class="histogram" width="128" height="44" hidden aria-label="Histogramme de luminosité"></canvas>
+                <div class="pills" id="pills" hidden></div>
                 <div class="zoom-bar" id="zoom-bar" role="group" aria-label="Zoom"></div>
                 <div class="gate" id="gate" hidden role="alert">
                     <span class="gate-icon" data-icon="camera"></span>
@@ -51,7 +56,6 @@
                     <button class="btn btn--primary" id="gate-primary" type="button" hidden></button>
                     <button class="btn btn--ghost" id="gate-secondary" type="button" hidden></button>
                 </div>
-                <div id="flash" class="flash" aria-hidden="true"></div>
                 <p id="message" class="message" role="status" hidden></p>
             </div>
 

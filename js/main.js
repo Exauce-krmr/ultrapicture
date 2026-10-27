@@ -13,7 +13,7 @@ import { setDistortionCenter } from './filters/distort.js';
 import { adjustmentsForLook, getLook, intensityForLook, DEFAULT_ADJUSTMENTS } from './looks.js';
 import { SettingsStore } from './services/settings.js';
 import { FaceTracker } from './services/face-tracker.js';
-import { createFaceOverlay } from './ar.js';
+import { AR_ACCESSORIES, createFaceOverlay } from './ar.js';
 import { MediaStore } from './services/media-store.js';
 import { bindBackNavigation } from './ui/back-navigation.js';
 import { registerServiceWorker } from './pwa.js';
@@ -47,12 +47,14 @@ const settingsView = new SettingsView({
     },
 });
 
+function selectLook(id) {
+    const look = getLook(id);
+    if (look.category === 'fun') toast.show(CONFIG.DISTORT_HINT);
+    settings.set({ lookId: id, adjustments: adjustmentsForLook(look), effectIntensity: intensityForLook(look) });
+}
+
 const panel = new ToolPanel({
-    onLook: (id) => {
-        const look = getLook(id);
-        if (look.category === 'fun') toast.show(CONFIG.DISTORT_HINT);
-        settings.set({ lookId: id, adjustments: adjustmentsForLook(look), effectIntensity: intensityForLook(look) });
-    },
+    onLook: selectLook,
     onAr: (id) => setAccessory(id),
     onAdjust: (id, value) => settings.set({ adjustments: { ...settings.get().adjustments, [id]: value } }),
     onIntensity: (value) => settings.set({ effectIntensity: value }),
@@ -76,7 +78,7 @@ const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 const haptic = () => { if (settings.get().haptics) navigator.vibrate?.(CONFIG.HAPTIC_MS); };
 const nextFrames = async (n) => { for (let i = 0; i < n; i++) await new Promise(requestAnimationFrame); };
 const currentRatio = () => CONFIG.RATIOS.find((r) => r.id === settings.get().ratio) ?? CONFIG.RATIOS[0];
-const maxZoom = () => (camera.zoomRange ? Math.min(camera.zoomRange.max, CONFIG.ZOOM_MAX_DIGITAL) : CONFIG.ZOOM_MAX_DIGITAL);
+const maxZoom = () => CONFIG.ZOOM_MAX_DIGITAL;
 
 // ---------- Application des réglages à l'affichage ----------
 function applyProcessing() {
@@ -87,6 +89,12 @@ function applyProcessing() {
         intensity: s.effectIntensity / 100,
     });
     panel.setState({ lookId: s.lookId, adjustments: s.adjustments, effectIntensity: s.effectIntensity, arId });
+    // Pastilles sur l'image : l'effet actif se retire d'un appui, quel que soit l'onglet ouvert.
+    const look = getLook(s.lookId);
+    screen.setActiveEffects([
+        ...(s.lookId !== 'original' ? [{ label: look.label, onClear: () => selectLook('original') }] : []),
+        ...(arId ? [{ label: AR_ACCESSORIES[arId].label, onClear: () => setAccessory(null) }] : []),
+    ]);
 }
 
 function applyDisplay() {
@@ -201,12 +209,11 @@ async function onCameraLost() {
 
 function setZoom(value) {
     zoom = clamp(value, 1, maxZoom());
-    if (camera.zoomRange) {
-        renderer.setZoom(1);
-        camera.setZoom(zoom).catch((err) => console.warn('[camera] zoom matériel', err));
-    } else {
-        renderer.setZoom(zoom);
-    }
+    // Zoom matériel (optique) tant que la caméra le permet, puis numérique pour le reste : la netteté est gardée au maximum.
+    const range = camera.zoomRange;
+    const hardware = range ? clamp(zoom, Math.max(1, range.min), range.max) : 1;
+    if (range) camera.setZoom(hardware).catch((err) => console.warn('[camera] zoom matériel', err));
+    renderer.setZoom(zoom / hardware);
     screen.setZoom(zoom, maxZoom());
 }
 

@@ -1,6 +1,6 @@
 import { CONFIG } from './config.js';
-import { $ } from './ui/dom.js';
-import { hydrateIcons } from './ui/icons.js';
+import { $, el } from './ui/dom.js';
+import { hydrateIcons, icon } from './ui/icons.js';
 import { formatDuration } from './capture.js';
 
 /**
@@ -10,6 +10,10 @@ import { formatDuration } from './capture.js';
 export class CameraScreen {
     #els = {
         stage: $('#stage'),
+        frame: $('#frame'),
+        topbar: $('.topbar'),
+        dock: $('.dock'),
+        pills: $('#pills'),
         torch: $('#btn-torch'),
         grid: $('#btn-grid'),
         histogramBtn: $('#btn-histogram'),
@@ -46,6 +50,45 @@ export class CameraScreen {
     constructor() {
         hydrateIcons();
         this.#els.gridOverlay.innerHTML = '<i></i><i></i><i></i><i></i>';
+        // La taille du cadre dépend de l'écran, de la barre d'outils et du panneau (qui peut se replier).
+        const observer = new ResizeObserver(() => this.#layout());
+        for (const node of [this.#els.stage, this.#els.dock, this.#els.topbar]) observer.observe(node);
+    }
+
+    #ratio = null;
+
+    /**
+     * Place le cadre de l'image : plein écran pour le format natif, sinon au format choisi sous la barre du haut.
+     * Les éléments flottants (zoom, histogramme…) se posent juste au-dessus du bas du cadre ou du panneau.
+     */
+    #layout() {
+        const { stage, frame, topbar, dock } = this.#els;
+        const W = stage.clientWidth;
+        const H = stage.clientHeight;
+        if (!W || !H) return;
+        const topH = topbar.offsetHeight;
+        const dockH = dock.offsetHeight;
+        let width = W, height = H, top = 0;
+        if (this.#ratio) {
+            height = Math.min(W / this.#ratio, H - topH);
+            width = height * this.#ratio;
+            top = topH;
+        }
+        Object.assign(frame.style, { left: `${(W - width) / 2}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
+        stage.style.setProperty('--top-h', `${topH}px`);
+        stage.style.setProperty('--dock-h', `${dockH}px`);
+        stage.style.setProperty('--overlay-bottom', `${Math.max(dockH, H - (top + height))}px`);
+    }
+
+    /** Pastilles « effet actif × » : [{ label, onClear }]. */
+    setActiveEffects(items) {
+        const { pills } = this.#els;
+        pills.replaceChildren(...items.map(({ label, onClear }) => {
+            const pill = el('button', { class: 'pill', type: 'button', 'aria-label': `Retirer : ${label}`, onClick: onClear }, label);
+            pill.insertAdjacentHTML('beforeend', icon('x'));
+            return pill;
+        }));
+        pills.hidden = items.length === 0;
     }
 
     /** @param {Record<string, Function>} h */
@@ -88,8 +131,14 @@ export class CameraScreen {
         const distance = () => { const [a, b] = [...pointers.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
         // Position normalisée (0-1) dans l'image affichée : sert à déplacer le centre des effets fun.
         const emitPoint = (e) => {
-            const rect = $('#preview').getBoundingClientRect();
-            onPoint((e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height);
+            // Le canvas est affiché en « contain » : on exclut les bandes vides autour de l'image.
+            const canvas = $('#preview');
+            const box = canvas.getBoundingClientRect();
+            const fit = Math.min(box.width / canvas.width, box.height / canvas.height);
+            const w = canvas.width * fit, h = canvas.height * fit;
+            const x = (e.clientX - (box.left + (box.width - w) / 2)) / w;
+            const y = (e.clientY - (box.top + (box.height - h) / 2)) / h;
+            onPoint(Math.min(1, Math.max(0, x)), Math.min(1, Math.max(0, y)));
         };
         stage.addEventListener('pointerdown', (e) => {
             pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -182,6 +231,8 @@ export class CameraScreen {
         this.#els.timer.setAttribute('aria-label', seconds ? `Minuteur : ${seconds} secondes` : 'Minuteur : désactivé');
     }
     setRatio(ratio) {
+        this.#ratio = ratio.value;
+        this.#layout();
         const custom = ratio.value !== null;
         this.#els.ratioBadge.hidden = !custom;
         this.#els.ratioBadge.textContent = ratio.label;
