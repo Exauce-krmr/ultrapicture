@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <!-- CSP : tout en local ; blob:/data: nécessaires au flux caméra, aux captures et à la galerie. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; media-src * blob:; img-src 'self' data: blob:; script-src 'self' 'wasm-unsafe-eval'">
+    <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0c0d10">
+    <title>UltraPicture</title>
+    <meta name="description" content="UltraPicture : appareil photo créatif avec filtres en temps réel, effets et réalité augmentée.">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="UltraPicture">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+    <main class="app">
+        <!-- ===== Écran caméra ===== -->
+        <section class="camera-screen" id="camera-screen">
+            <header class="topbar">
+                <button id="btn-torch" class="icon-btn" type="button" aria-label="Flash" aria-pressed="false" hidden><span data-icon="zap"></span></button>
+                <button id="btn-grid" class="icon-btn" type="button" aria-label="Grille de composition" aria-pressed="false"><span data-icon="grid"></span></button>
+                <button id="btn-histogram" class="icon-btn" type="button" aria-label="Histogramme" aria-pressed="false"><span data-icon="bars"></span></button>
+                <button id="btn-timer" class="icon-btn" type="button" aria-label="Minuteur"><span data-icon="timer"></span><span class="badge" id="timer-badge" hidden></span></button>
+                <button id="btn-ratio" class="icon-btn" type="button" aria-label="Format de l'image"><span data-icon="crop"></span><span class="badge" id="ratio-badge" hidden></span></button>
+                <button id="btn-settings" class="icon-btn" type="button" aria-label="Paramètres"><span data-icon="sliders"></span></button>
+            </header>
+
+            <div class="stage" id="stage">
+                <canvas id="preview" aria-label="Aperçu de la caméra"></canvas>
+                <video id="source" playsinline muted hidden></video>
+                <div class="grid-overlay" id="grid-overlay" hidden aria-hidden="true"></div>
+                <canvas id="histogram" class="histogram" width="128" height="44" hidden aria-label="Histogramme de luminosité"></canvas>
+                <div class="hud">
+                    <span id="rec-chip" class="hud-chip hud-chip--rec" hidden></span>
+                    <span id="fps-chip" class="hud-chip" hidden></span>
+                    <span id="compare-chip" class="hud-chip" hidden>Original</span>
+                </div>
+                <div class="countdown" id="countdown" hidden aria-live="assertive"></div>
+                <div class="zoom-bar" id="zoom-bar" role="group" aria-label="Zoom"></div>
+                <div class="gate" id="gate" hidden role="alert">
+                    <span class="gate-icon" data-icon="camera"></span>
+                    <h2 class="gate-title" id="gate-title"></h2>
+                    <p class="gate-text" id="gate-text"></p>
+                    <p class="gate-steps" id="gate-steps" hidden></p>
+                    <button class="btn btn--primary" id="gate-primary" type="button" hidden></button>
+                    <button class="btn btn--ghost" id="gate-secondary" type="button" hidden></button>
+                </div>
+                <div id="flash" class="flash" aria-hidden="true"></div>
+                <p id="message" class="message" role="status" hidden></p>
+            </div>
+
+            <section class="dock">
+                <div class="panel" id="panel"></div>
+                <div class="tabs" id="tabs" role="tablist" aria-label="Outils">
+                    <button class="tab" type="button" role="tab" data-tab="looks">Looks</button>
+                    <button class="tab" type="button" role="tab" data-tab="effects">Effets</button>
+                    <button class="tab" type="button" role="tab" data-tab="fun">Fun</button>
+                    <button class="tab" type="button" role="tab" data-tab="adjust">Réglages</button>
+                    <button class="tab tab--compare" id="btn-compare" type="button" aria-label="Maintenir pour voir l'original"><span data-icon="eye"></span></button>
+                </div>
+                <div class="controls">
+                    <button id="gallery" class="thumb" type="button" aria-label="Ouvrir la galerie" hidden></button>
+                    <button id="shutter" class="shutter" type="button" aria-label="Prendre une photo"><span class="shutter-core"></span></button>
+                    <button id="flip" class="icon-btn icon-btn--round" type="button" aria-label="Changer de caméra"><span data-icon="flip"></span></button>
+                </div>
+                <div class="modes" id="modes" role="tablist" aria-label="Mode de capture">
+                    <button class="mode" type="button" role="tab" data-mode="photo">Photo</button>
+                    <button class="mode" type="button" role="tab" data-mode="video">Vidéo</button>
+                </div>
+            </section>
+        </section>
+
+        <!-- ===== Galerie ===== -->
+        <section class="view" id="gallery-view" hidden aria-label="Galerie">
+            <header class="view-header">
+                <button class="icon-btn" id="gallery-close" type="button" aria-label="Retour"><span data-icon="left"></span></button>
+                <h1 class="view-title">Galerie <span class="view-count" id="gallery-count"></span></h1>
+            </header>
+            <div class="gallery-grid" id="gallery-grid"></div>
+            <p class="empty" id="gallery-empty" hidden>Aucun média pour l'instant.<br>Vos photos et vidéos apparaîtront ici.</p>
+        </section>
+
+        <!-- ===== Visionneuse ===== -->
+        <section class="view viewer" id="viewer" hidden aria-label="Visionneuse">
+            <header class="view-header">
+                <button class="icon-btn" id="viewer-close" type="button" aria-label="Fermer"><span data-icon="x"></span></button>
+                <span class="viewer-info" id="viewer-info"></span>
+            </header>
+            <div class="viewer-body" id="viewer-body">
+                <button class="icon-btn viewer-nav viewer-nav--prev" id="viewer-prev" type="button" aria-label="Précédent"><span data-icon="left"></span></button>
+                <div class="viewer-media" id="viewer-media"></div>
+                <button class="icon-btn viewer-nav viewer-nav--next" id="viewer-next" type="button" aria-label="Suivant"><span data-icon="right"></span></button>
+            </div>
+            <footer class="viewer-actions">
+                <button class="action" id="viewer-share" type="button"><span data-icon="share"></span>Partager</button>
+                <button class="action" id="viewer-download" type="button"><span data-icon="download"></span>Télécharger</button>
+                <button class="action action--danger" id="viewer-delete" type="button"><span data-icon="trash"></span><span id="viewer-delete-label">Supprimer</span></button>
+            </footer>
+        </section>
+
+        <!-- ===== Paramètres ===== -->
+        <section class="view" id="settings-view" hidden aria-label="Paramètres">
+            <header class="view-header">
+                <button class="icon-btn" id="settings-close" type="button" aria-label="Retour"><span data-icon="left"></span></button>
+                <h1 class="view-title">Paramètres</h1>
+            </header>
+            <div class="settings-body" id="settings-body"></div>
+        </section>
+    </main>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
