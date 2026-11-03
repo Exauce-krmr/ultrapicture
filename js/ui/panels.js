@@ -3,7 +3,7 @@ import { $, el } from './dom.js';
 import { icon } from './icons.js';
 import { AR_ACCESSORIES } from '../ar.js';
 
-const STRIP_LABELS = { looks: 'Looks', effects: 'Effets', fun: 'Effets fun et accessoires' };
+const STRIP_LABELS = { looks: 'Looks', effects: 'Effets', fun: 'Effets fun', face: 'Accessoires de visage' };
 
 /**
  * Panneau d'outils sous l'aperçu : looks, effets (avec intensité) et réglages manuels.
@@ -74,6 +74,7 @@ export class ToolPanel {
      * Toucher l'effet déjà actif remplace la rangée par son curseur d'intensité, comme dans les réglages.
      */
     #lookPanel(category) {
+        if (category === 'face') return this.#facePanel();
         const { lookId, effectIntensity, arId } = this.#state;
         const current = LOOKS.find((l) => l.id === lookId);
         const adjustable = category !== 'looks' && Boolean(current?.effect) && current.category === category;
@@ -84,7 +85,7 @@ export class ToolPanel {
         }, label);
         const items = [];
         if (category !== 'looks') {
-            const none = chip('Aucun', lookId === 'original' && !arId, () => { this.h.onLook('original'); if (arId) this.h.onAr(null); });
+            const none = chip('Aucun', lookId === 'original', () => this.h.onLook('original'));
             none.classList.add('chip--none');
             items.push(none);
         }
@@ -101,13 +102,19 @@ export class ToolPanel {
             }
             items.push(node);
         }
-        if (category === 'fun') {
-            items.push(el('span', { class: 'strip-divider', 'aria-hidden': 'true' }));
-            for (const [id, { label }] of Object.entries(AR_ACCESSORIES)) {
-                items.push(chip(label, id === arId, () => this.h.onAr(id === arId ? null : id)));
-            }
-        }
         return el('div', { class: 'strip', role: 'listbox', 'aria-label': STRIP_LABELS[category] }, items);
+    }
+
+    /** Onglet « Visage » : accessoires de réalité augmentée (le visage est détecté, l'accessoire le suit). */
+    #facePanel() {
+        const { arId } = this.#state;
+        const chip = (label, selected, onClick, extra = '') => el('button', {
+            class: `chip${extra}`, type: 'button', role: 'option', 'aria-selected': String(selected), onClick,
+        }, label);
+        return el('div', { class: 'strip', role: 'listbox', 'aria-label': STRIP_LABELS.face }, [
+            chip('Aucun', !arId, () => this.h.onAr(null), ' chip--none'),
+            ...Object.entries(AR_ACCESSORIES).map(([id, { label }]) => chip(label, id === arId, () => this.h.onAr(id === arId ? null : id))),
+        ]);
     }
 
     /** Rangée « curseur » : remplace la rangée de pastilles le temps du réglage. */
@@ -123,37 +130,47 @@ export class ToolPanel {
     }
 
     /**
-     * Réglages « à la Apple » : une rangée d'outils à faire défiler horizontalement,
-     * puis UN seul grand curseur pour l'outil choisi (aucun défilement vertical).
+     * Réglages : une rangée d'outils (la valeur s'affiche dans l'outil choisi) + UNE rangée de commande
+     * [−] curseur [+] [↺]. Deux rangées en tout : l'image reste visible.
      */
     #adjustPanel() {
         const { adjustments } = this.#state;
         const current = ADJUSTMENTS.find((a) => a.id === this.#selectedAdjust) ?? ADJUSTMENTS[0];
         const value = adjustments[current.id] ?? current.default;
 
-        const chips = ADJUSTMENTS.map((adj) => el('button', {
-            class: `chip chip--adjust${adjustments[adj.id] !== adj.default ? ' is-modified' : ''}`,
-            type: 'button', role: 'option', dataset: { chip: adj.id },
-            'aria-selected': String(adj.id === current.id),
-            onClick: () => { this.#selectedAdjust = adj.id; this.#render(); },
-        }, adj.label));
+        const chips = ADJUSTMENTS.map((adj) => {
+            const selected = adj.id === current.id;
+            const node = el('button', {
+                class: `chip chip--adjust${adjustments[adj.id] !== adj.default ? ' is-modified' : ''}`,
+                type: 'button', role: 'option', dataset: { chip: adj.id }, 'aria-selected': String(selected),
+                onClick: () => { this.#selectedAdjust = adj.id; this.#render(); },
+            }, adj.label);
+            if (selected) node.append(el('span', { class: 'chip-value', dataset: { adjustValue: '' } }, formatValue(adj, value)));
+            return node;
+        });
         const resetAll = el('button', { class: 'chip chip--ghost', type: 'button', 'aria-label': 'Tout réinitialiser', onClick: () => this.h.onReset() });
         resetAll.innerHTML = icon('reset');
 
-        const step = (delta) => () => this.h.onAdjust(current.id, clamp(this.#state.adjustments[current.id] + delta, current.min, current.max));
+        const set = (v) => this.h.onAdjust(current.id, clamp(v, current.min, current.max));
         const slider = el('input', {
             type: 'range', min: current.min, max: current.max, step: 1, value, dataset: { adjust: current.id },
             'aria-label': current.label,
-            onInput: (e) => this.h.onAdjust(current.id, Number(e.target.value)),
+            onInput: (e) => {
+                // Cran au point neutre : plus facile de revenir exactement à la valeur d'origine.
+                let v = Number(e.target.value);
+                if (v !== current.default && Math.abs(v - current.default) <= SNAP) { v = current.default; e.target.value = v; }
+                this.h.onAdjust(current.id, v);
+            },
         });
-        const stepBtn = (text, label, delta) => el('button', { class: 'step', type: 'button', 'aria-label': label, onClick: step(delta) }, text);
-        const reset = el('button', { class: 'text-btn', type: 'button', onClick: () => this.h.onAdjust(current.id, current.default) }, 'Réinitialiser');
+        paintFill(slider, current);
+        const stepBtn = (text, label, delta) => el('button', { class: 'step', type: 'button', 'aria-label': label, onClick: () => set(this.#state.adjustments[current.id] + delta) }, text);
+        const reset = el('button', { class: 'step step--reset', type: 'button', 'aria-label': `Réinitialiser ${current.label}`, dataset: { resetCurrent: '' }, onClick: () => set(current.default) });
+        reset.innerHTML = icon('reset');
+        reset.disabled = value === current.default;
 
         return el('div', { class: 'adjust' },
             el('div', { class: 'strip', role: 'listbox', 'aria-label': 'Outils de réglage' }, ...chips, resetAll),
-            el('div', { class: 'adjust-head' },
-                el('output', { class: 'adjust-value', dataset: { adjustValue: '' } }, formatValue(current, value)), reset),
-            el('div', { class: 'adjust-slider' }, stepBtn('−', 'Diminuer', -5), slider, stepBtn('+', 'Augmenter', 5)));
+            el('div', { class: 'adjust-slider' }, stepBtn('−', 'Diminuer', -5), slider, stepBtn('+', 'Augmenter', 5), reset));
     }
 
     /** Met à jour valeur, curseur et pastilles « modifié » sans reconstruire le DOM (un glissement reste fluide). */
@@ -163,13 +180,28 @@ export class ToolPanel {
             const adj = ADJUSTMENTS.find((a) => a.id === input.dataset.adjust);
             const value = adjustments[adj.id];
             if (Number(input.value) !== value) input.value = value;
-            this.#panel.querySelector('[data-adjust-value]').textContent = formatValue(adj, value);
+            paintFill(input, adj);
+            const badge = this.#panel.querySelector('[data-adjust-value]');
+            if (badge) badge.textContent = formatValue(adj, value);
+            const reset = this.#panel.querySelector('[data-reset-current]');
+            if (reset) reset.disabled = value === adj.default;
         }
         for (const chip of this.#panel.querySelectorAll('[data-chip]')) {
             const adj = ADJUSTMENTS.find((a) => a.id === chip.dataset.chip);
             chip.classList.toggle('is-modified', adjustments[adj.id] !== adj.default);
         }
     }
+}
+
+// Écart (en unités) dans lequel le curseur « colle » à la valeur neutre.
+const SNAP = 3;
+
+/** Colore la piste entre la valeur neutre et le curseur (variables lues par le CSS). */
+function paintFill(input, { min, max, default: neutral }) {
+    const pct = (v) => ((v - min) / (max - min)) * 100;
+    const value = Number(input.value);
+    input.style.setProperty('--fill-a', `${Math.min(pct(neutral), pct(value))}%`);
+    input.style.setProperty('--fill-b', `${Math.max(pct(neutral), pct(value))}%`);
 }
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));

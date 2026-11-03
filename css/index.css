@@ -268,3 +268,23 @@ button, .cell { -webkit-touch-callout: none; }
 /* Ordre du bas : onglets d'outils, mode Photo/Vidéo, puis déclencheur tout en bas (à portée du pouce). */
 .modes { padding: 0 0 2px; }
 .controls { padding: 4px 12px 2px; }
+
+/* ===== Onglets : 5 + bouton « original » sur une seule ligne, répartis à parts égales ===== */
+.tabs { gap: 0; padding: 0 6px; }
+.tab { flex: 1 1 0; min-width: 0; padding: 10px 2px; font-size: .8rem; text-align: center; white-space: nowrap; }
+.tab--compare { flex: none; margin-left: 4px; }
+
+/* ===== Réglages ===== */
+.chip--adjust { display: inline-flex; align-items: center; gap: 8px; }
+.chip-value { min-width: 3.2ch; text-align: right; color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+.chip--adjust[aria-selected="true"] .chip-value { color: #8a5a00; }
+.adjust-slider { grid-template-columns: 48px 1fr 48px 48px; gap: 6px; padding: 0 12px 4px; }
+.step--reset { display: grid; place-items: center; }
+.step--reset svg { width: 20px; height: 20px; }
+.step:disabled { opacity: .3; }
+/* Piste colorée depuis le point neutre jusqu'au curseur. */
+.adjust-slider input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(to right, rgba(255, 255, 255, .22) 0 var(--fill-a, 0%), var(--accent) var(--fill-a, 0%) var(--fill-b, 0%), rgba(255, 255, 255, .22) var(--fill-b, 0%) 100%); }
+.adjust-slider input[type="range"]::-webkit-slider-thumb { margin-top: -10px; width: 26px; height: 26px; }
+.adjust-slider input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .22); }
+.adjust-slider input[type="range"]::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent); }
+.chip--adjust[aria-selected="true"].is-modified::after { display: none; }
