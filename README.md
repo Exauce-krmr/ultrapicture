@@ -1,8 +1,8 @@
-# UltraPicture 📸
+# UltraPicture
 
 Un appareil photo créatif qui tourne directement dans le navigateur : filtres en temps réel, effets déformants, accessoires en réalité augmentée sur ton visage, photo et vidéo.
 
-**👉 Essayer l'application : https://exauce-krmr.github.io/ultrapicture/**
+**Essayer l'application : https://exauce-krmr.github.io/ultrapicture/**
 
 ## Ce que tu peux faire
 - **Looks et réglages** : noir & blanc, cinéma, vintage, chaud, froid, sépia… avec un curseur d'intensité, plus exposition, contraste, saturation, netteté, vignette, grain.
