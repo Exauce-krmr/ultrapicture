@@ -1,6 +1,6 @@
 // Toutes les valeurs ajustables de l'application sont ici.
 
-export const APP = Object.freeze({ NAME: 'UltraPicture', VERSION: '3.0.0' });
+export const APP = Object.freeze({ NAME: 'UltraPicture', VERSION: '8' });
 
 /** Progressive Web App : chemin relatif pour fonctionner aussi sous un sous-dossier (GitHub Pages). */
 export const PWA = Object.freeze({ SW_PATH: 'sw.js' });

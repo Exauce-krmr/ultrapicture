@@ -48,7 +48,8 @@ h1, h2, p { margin: 0; }
 .grid-overlay i:nth-child(3) { top: 33.333%; left: 0; right: 0; height: 1px; }
 .grid-overlay i:nth-child(4) { top: 66.666%; left: 0; right: 0; height: 1px; }
 .histogram { position: absolute; left: 10px; bottom: calc(var(--overlay-bottom) + 10px); width: 96px; height: 34px; padding: 3px; border-radius: 8px; background: rgba(0, 0, 0, .45); pointer-events: none; }
-.hud { position: absolute; top: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; pointer-events: none; }
+.hud { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.hud:not(:has(> :not([hidden]))) { display: none; }
 .hud-chip { padding: 3px 10px; border-radius: 999px; background: rgba(0, 0, 0, .55); font-size: .75rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .hud-chip--rec { background: var(--danger); }
 .countdown { position: absolute; inset: 0; display: grid; place-items: center; font-size: 7rem; font-weight: 200; text-shadow: 0 2px 20px rgba(0, 0, 0, .6); pointer-events: none; }
@@ -57,7 +58,7 @@ h1, h2, p { margin: 0; }
 .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
 .flash.is-active { animation: flash .25s ease-out; }
 @keyframes flash { from { opacity: .85; } to { opacity: 0; } }
-.message { position: absolute; left: 14px; right: 14px; bottom: calc(var(--overlay-bottom) + 118px); z-index: 4; padding: 11px 14px; border-radius: var(--radius); background: rgba(12, 13, 16, .88); border: 1px solid var(--line); text-align: center; font-size: .9rem; }
+.message { max-width: 100%; padding: 12px 16px; border-radius: var(--radius); background: rgba(12, 13, 16, .88); border: 1px solid var(--line); text-align: center; font-size: .9rem; }
 
 .zoom-bar { position: absolute; left: 50%; bottom: calc(var(--overlay-bottom) + 10px); z-index: 4; transform: translateX(-50%); display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: rgba(0, 0, 0, .5); }
 .zoom-btn { min-width: 34px; height: 30px; padding: 0 8px; border-radius: 999px; display: inline-grid; place-items: center; font-size: .78rem; font-weight: 600; color: var(--fg); }
@@ -237,10 +238,11 @@ button, .cell { -webkit-touch-callout: none; }
 .dock.is-offline .panel, .dock.is-offline .tabs, .dock.is-offline .modes, .dock.is-offline .icon-btn--round, .dock.is-offline .shutter { opacity: .35; }
 .stage.is-offline .zoom-bar { display: none; }
 
-/* ===== Effets actifs : un appui suffit pour les retirer, depuis n'importe quel onglet ===== */
-.pills { position: absolute; left: 0; right: 0; bottom: calc(var(--overlay-bottom) + 66px); z-index: 4; display: flex; justify-content: center; gap: 8px; padding: 0 12px; pointer-events: none; }
-.pill { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 8px 0 14px; border-radius: 999px; background: rgba(0, 0, 0, .6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); font-size: .82rem; font-weight: 600; }
-.pill [data-icon], .pill svg { width: 24px; height: 24px; padding: 4px; border-radius: 50%; background: rgba(255, 255, 255, .18); }
+/* ===== Zone d'état (haut de l'image) : empilée, jamais superposée au zoom ni au panneau ===== */
+.status { position: absolute; left: 0; right: 0; top: calc(var(--top-h) + 10px); z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 0 14px; pointer-events: none; }
+.pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.pill { pointer-events: auto; display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 8px 0 16px; border-radius: 999px; background: rgba(0, 0, 0, .6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); font-size: .9rem; font-weight: 600; }
+.pill [data-icon], .pill svg { width: 32px; height: 32px; padding: 6px; border-radius: 50%; background: rgba(255, 255, 255, .18); }
 .chip--none { color: var(--muted); }
 
 /* Lisibilité des éléments posés sur l'image, maintenant que le fond du panneau est presque transparent. */
@@ -248,3 +250,21 @@ button, .cell { -webkit-touch-callout: none; }
 .icon-btn svg, .tab--compare svg { filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .6)); }
 .chip { background: rgba(30, 33, 39, .62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .chip[aria-selected="true"] { background: var(--fg); }
+
+
+/* Panneau : replié au départ, marges de sécurité pour le pouce. */
+.dock { padding-bottom: calc(var(--safe-bottom) + 4px); }
+.zoom-btn { min-width: 48px; height: 44px; }
+
+/* ===== Panneau : une seule rangée, cibles larges ===== */
+.chip--adjustable { display: inline-flex; align-items: center; gap: 8px; }
+.chip--adjustable svg { width: 18px; height: 18px; }
+.chip--none { color: var(--muted); }
+.strip-divider { flex: none; align-self: center; width: 1px; height: 24px; background: var(--line); margin: 0 2px; }
+.intensity-row { display: grid; grid-template-columns: auto 1fr 52px auto; align-items: center; gap: 12px; padding: 0 14px 4px; min-height: 52px; }
+.intensity-row input[type="range"] { height: 52px; }
+.adjust-value--inline { font-size: 1rem; text-align: right; }
+.chip--done { background: var(--accent) !important; color: var(--on-accent); font-weight: 700; min-width: 64px; }
+/* Ordre du bas : onglets d'outils, mode Photo/Vidéo, puis déclencheur tout en bas (à portée du pouce). */
+.modes { padding: 0 0 2px; }
+.controls { padding: 4px 12px 2px; }

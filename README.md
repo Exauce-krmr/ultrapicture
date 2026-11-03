@@ -1,8 +1,8 @@
-# UltraPicture
+# UltraPicture 📸
 
 Un appareil photo créatif qui tourne directement dans le navigateur : filtres en temps réel, effets déformants, accessoires en réalité augmentée sur ton visage, photo et vidéo.
 
-**Essayer l'application : https://exauce-krmr.github.io/ultrapicture/**
+**👉 Essayer l'application : https://exauce-krmr.github.io/ultrapicture/**
 
 ## Ce que tu peux faire
 - **Looks et réglages** : noir & blanc, cinéma, vintage, chaud, froid, sépia… avec un curseur d'intensité, plus exposition, contraste, saturation, netteté, vignette, grain.
@@ -41,6 +41,6 @@ Application en JavaScript vanilla (modules ES), sans étape de build. La caméra
     python3 -m http.server 8080      # puis http://localhost:8080
 
 Structure : `index.html`, `css/`, `js/` (`main.js` orchestre ; `pwa.js` et `sw.js` gèrent la PWA), `vendor/mediapipe/` (détection de visage, voir son README), `manifest.webmanifest`, `icons/`.
-Tous les chemins sont relatifs : le site fonctionne sous un sous-dossier (GitHub Pages). Après une mise à jour, incrémenter `VERSION` dans `sw.js` pour renouveler le cache des utilisateurs.
+Tous les chemins sont relatifs : le site fonctionne sous un sous-dossier (GitHub Pages). Après une mise à jour, changer `APP.VERSION` dans `js/config.js` (le cache et la version affichée suivent) pour renouveler le cache des utilisateurs.
 
 Technologies : Canvas 2D, `getUserMedia`, `MediaRecorder`, IndexedDB, Service Worker, [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker) (Apache-2.0).

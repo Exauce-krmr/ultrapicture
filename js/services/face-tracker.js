@@ -5,6 +5,7 @@ export const FACE_POINTS = Object.freeze({
     rightEyeOuter: 33, rightEyeInner: 133, leftEyeOuter: 263, leftEyeInner: 362,
     noseTip: 1, noseBase: 2, upperLip: 0, mouthTop: 13, mouthBottom: 14,
     forehead: 10, chin: 152, faceRight: 234, faceLeft: 454,
+    noseBridge: 6, noseWingA: 129, noseWingB: 358, mouthA: 61, mouthB: 291, templeA: 54, templeB: 284,
 });
 const INDICES = Object.values(FACE_POINTS);
 const SLOT = Object.fromEntries(Object.keys(FACE_POINTS).map((name, i) => [name, i]));

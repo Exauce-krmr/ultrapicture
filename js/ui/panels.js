@@ -3,7 +3,7 @@ import { $, el } from './dom.js';
 import { icon } from './icons.js';
 import { AR_ACCESSORIES } from '../ar.js';
 
-const STRIP_LABELS = { looks: 'Looks', effects: 'Effets', fun: 'Effets fun' };
+const STRIP_LABELS = { looks: 'Looks', effects: 'Effets', fun: 'Effets fun et accessoires' };
 
 /**
  * Panneau d'outils sous l'aperçu : looks, effets (avec intensité) et réglages manuels.
@@ -13,7 +13,8 @@ export class ToolPanel {
     #panel = $('#panel');
     #tabs = $('#tabs');
     #active = 'looks';
-    #open = true;
+    #sliderMode = false; // curseur d'intensité affiché à la place des pastilles
+    #open = false; // replié au départ : l'image garde toute la place, un appui sur un onglet ouvre ses outils
     #selectedAdjust = ADJUSTMENTS[0].id;
     #renderedTab = null;
     #state = { lookId: 'original', adjustments: {}, effectIntensity: 100, arId: null };
@@ -27,14 +28,24 @@ export class ToolPanel {
             // Un second appui sur l'onglet actif replie le panneau.
             this.#open = !(this.#open && this.#active === tab.dataset.tab);
             this.#active = tab.dataset.tab;
+            this.#sliderMode = false;
             this.#render();
         });
+        this.#render();
+    }
+
+    /** Replie le panneau (appui sur l'image). */
+    close() {
+        if (!this.#open) return;
+        this.#open = false;
+        this.#sliderMode = false;
         this.#render();
     }
 
     setState(state) {
         const previous = this.#state;
         this.#state = state;
+        if (previous.lookId !== state.lookId) this.#sliderMode = false;
         // Mise à jour fine (sans reconstruire le DOM) pour ne pas casser un glissement de slider en cours.
         if (this.#active === 'adjust' && this.#open && this.#panel.querySelector('[data-adjust]')) this.#syncSliders();
         else if (this.#active !== 'adjust' && this.#open && previous.lookId === state.lookId && previous.arId === state.arId) return;
@@ -58,44 +69,57 @@ export class ToolPanel {
         return this.#active === 'adjust' ? this.#adjustPanel() : this.#lookPanel(this.#active);
     }
 
+    /**
+     * Une seule rangée de pastilles (jamais empilée) : l'image reste visible.
+     * Toucher l'effet déjà actif remplace la rangée par son curseur d'intensité, comme dans les réglages.
+     */
     #lookPanel(category) {
         const { lookId, effectIntensity, arId } = this.#state;
-        const looks = LOOKS.filter((l) => l.category === category);
         const current = LOOKS.find((l) => l.id === lookId);
-        const sliderLabel = category === 'fun' ? 'Force' : 'Intensité';
+        const adjustable = category !== 'looks' && Boolean(current?.effect) && current.category === category;
+        if (adjustable && this.#sliderMode) return this.#intensityRow(category, effectIntensity);
 
-        // Un second appui sur un effet actif le désactive (retour à « Original »).
         const chip = (label, selected, onClick) => el('button', {
             class: 'chip', type: 'button', role: 'option', 'aria-selected': String(selected), onClick,
         }, label);
-        const lookChip = (look) => chip(look.label, look.id === lookId,
-            () => this.h.onLook(look.category !== 'looks' && look.id === lookId ? 'original' : look.id));
-        const strip = (label, chips) => el('div', { class: 'strip', role: 'listbox', 'aria-label': label }, chips);
-
-        // « Aucun » en tête de liste : retirer l'effet ne demande plus de chercher « Original » dans un autre onglet.
-        const none = (selected, onClick) => chip('Aucun', selected, onClick);
-        const noneChip = (selected, onClick) => { const c = none(selected, onClick); c.classList.add('chip--none'); return c; };
-        const parts = [strip(STRIP_LABELS[category], [
-            ...(category === 'looks' ? [] : [noneChip(lookId === 'original', () => this.h.onLook('original'))]),
-            ...looks.map(lookChip),
-        ])];
-        if (category === 'fun') {
-            parts.push(el('p', { class: 'strip-label' }, 'Visage (réalité augmentée)'));
-            parts.push(strip('Accessoires de visage', [
-                noneChip(!arId, () => this.h.onAr(null)),
-                ...Object.entries(AR_ACCESSORIES).map(([id, { label }]) =>
-                    chip(label, id === arId, () => this.h.onAr(id === arId ? null : id))),
-            ]));
+        const items = [];
+        if (category !== 'looks') {
+            const none = chip('Aucun', lookId === 'original' && !arId, () => { this.h.onLook('original'); if (arId) this.h.onAr(null); });
+            none.classList.add('chip--none');
+            items.push(none);
         }
-        if (category !== 'looks' && current?.effect && current.category === category) {
-            const slider = el('input', {
-                type: 'range', min: 0, max: 100, step: 1, value: effectIntensity, 'aria-label': `${sliderLabel} de l’effet`,
-                onInput: (e) => { e.target.nextElementSibling.textContent = `${e.target.value}%`; this.h.onIntensity(Number(e.target.value)); },
+        for (const look of LOOKS.filter((l) => l.category === category)) {
+            const selected = look.id === lookId;
+            const node = chip(look.label, selected, () => {
+                if (selected && adjustable) { this.#sliderMode = true; this.#render(); }
+                else if (!selected) this.h.onLook(look.id);
             });
-            parts.push(el('label', { class: 'slider-row slider-row--inline' }, el('span', { class: 'slider-label' }, sliderLabel), slider,
-                el('output', { class: 'slider-value' }, `${effectIntensity}%`)));
+            if (selected && adjustable) {
+                node.classList.add('chip--adjustable');
+                node.setAttribute('aria-label', `${look.label} : régler l’intensité`);
+                node.insertAdjacentHTML('beforeend', icon('sliders'));
+            }
+            items.push(node);
         }
-        return el('div', {}, ...parts);
+        if (category === 'fun') {
+            items.push(el('span', { class: 'strip-divider', 'aria-hidden': 'true' }));
+            for (const [id, { label }] of Object.entries(AR_ACCESSORIES)) {
+                items.push(chip(label, id === arId, () => this.h.onAr(id === arId ? null : id)));
+            }
+        }
+        return el('div', { class: 'strip', role: 'listbox', 'aria-label': STRIP_LABELS[category] }, items);
+    }
+
+    /** Rangée « curseur » : remplace la rangée de pastilles le temps du réglage. */
+    #intensityRow(category, value) {
+        const label = category === 'fun' ? 'Force' : 'Intensité';
+        const output = el('output', { class: 'adjust-value adjust-value--inline' }, `${value}%`);
+        const slider = el('input', {
+            type: 'range', min: 0, max: 100, step: 1, value, 'aria-label': `${label} de l’effet`,
+            onInput: (e) => { output.textContent = `${e.target.value}%`; this.h.onIntensity(Number(e.target.value)); },
+        });
+        const done = el('button', { class: 'chip chip--done', type: 'button', onClick: () => { this.#sliderMode = false; this.#render(); } }, 'OK');
+        return el('div', { class: 'intensity-row' }, el('span', { class: 'slider-label' }, label), slider, output, done);
     }
 
     /**

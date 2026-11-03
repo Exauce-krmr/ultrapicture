@@ -1,6 +1,6 @@
 // Service worker d'UltraPicture : l'application fonctionne hors ligne après la première visite.
-// Incrémenter VERSION à chaque déploiement pour renouveler le cache.
-const VERSION = 'ultrapicture-v5';
+// La version vient de js/config.js (APP.VERSION), transmise dans l'URL d'enregistrement : un seul endroit à modifier.
+const VERSION = `ultrapicture-v${new URL(self.location).searchParams.get('v') ?? '0'}`;
 const SHELL = [
     './', 'index.html', 'manifest.webmanifest', 'css/index.css',
     'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',

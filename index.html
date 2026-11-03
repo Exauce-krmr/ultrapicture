@@ -37,16 +37,10 @@
                     <canvas id="preview" aria-label="Aperçu de la caméra"></canvas>
                     <video id="source" playsinline muted hidden></video>
                     <div class="grid-overlay" id="grid-overlay" hidden aria-hidden="true"></div>
-                    <div class="hud">
-                        <span id="rec-chip" class="hud-chip hud-chip--rec" hidden></span>
-                        <span id="fps-chip" class="hud-chip" hidden></span>
-                        <span id="compare-chip" class="hud-chip" hidden>Original</span>
-                    </div>
                     <div class="countdown" id="countdown" hidden aria-live="assertive"></div>
                     <div id="flash" class="flash" aria-hidden="true"></div>
                 </div>
                 <canvas id="histogram" class="histogram" width="128" height="44" hidden aria-label="Histogramme de luminosité"></canvas>
-                <div class="pills" id="pills" hidden></div>
                 <div class="zoom-bar" id="zoom-bar" role="group" aria-label="Zoom"></div>
                 <div class="gate" id="gate" hidden role="alert">
                     <span class="gate-icon" data-icon="camera"></span>
@@ -56,7 +50,16 @@
                     <button class="btn btn--primary" id="gate-primary" type="button" hidden></button>
                     <button class="btn btn--ghost" id="gate-secondary" type="button" hidden></button>
                 </div>
-                <p id="message" class="message" role="status" hidden></p>
+                <!-- Zone d'état unique, sous la barre du haut : chronomètre, effets actifs et messages s'empilent au lieu de se chevaucher. -->
+                <div class="status" id="status">
+                    <div class="hud">
+                        <span id="rec-chip" class="hud-chip hud-chip--rec" hidden></span>
+                        <span id="fps-chip" class="hud-chip" hidden></span>
+                        <span id="compare-chip" class="hud-chip" hidden>Original</span>
+                    </div>
+                    <div class="pills" id="pills" hidden></div>
+                    <p id="message" class="message" role="status" hidden></p>
+                </div>
             </div>
 
             <section class="dock">
@@ -68,14 +71,14 @@
                     <button class="tab" type="button" role="tab" data-tab="adjust">Réglages</button>
                     <button class="tab tab--compare" id="btn-compare" type="button" aria-label="Maintenir pour voir l'original"><span data-icon="eye"></span></button>
                 </div>
+                <div class="modes" id="modes" role="tablist" aria-label="Mode de capture">
+                    <button class="mode" type="button" role="tab" data-mode="photo">Photo</button>
+                    <button class="mode" type="button" role="tab" data-mode="video">Vidéo</button>
+                </div>
                 <div class="controls">
                     <button id="gallery" class="thumb" type="button" aria-label="Ouvrir la galerie" hidden></button>
                     <button id="shutter" class="shutter" type="button" aria-label="Prendre une photo"><span class="shutter-core"></span></button>
                     <button id="flip" class="icon-btn icon-btn--round" type="button" aria-label="Changer de caméra"><span data-icon="flip"></span></button>
-                </div>
-                <div class="modes" id="modes" role="tablist" aria-label="Mode de capture">
-                    <button class="mode" type="button" role="tab" data-mode="photo">Photo</button>
-                    <button class="mode" type="button" role="tab" data-mode="video">Vidéo</button>
                 </div>
             </section>
         </section>

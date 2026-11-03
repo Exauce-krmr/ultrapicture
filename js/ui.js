@@ -72,7 +72,8 @@ export class CameraScreen {
         if (this.#ratio) {
             height = Math.min(W / this.#ratio, H - topH);
             width = height * this.#ratio;
-            top = topH;
+            // Centré dans l'espace libre entre la barre du haut et le panneau (collé en haut s'il n'y a pas la place).
+            top = topH + Math.max(0, (H - topH - dockH - height) / 2);
         }
         Object.assign(frame.style, { left: `${(W - width) / 2}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
         stage.style.setProperty('--top-h', `${topH}px`);
@@ -115,7 +116,7 @@ export class CameraScreen {
         };
         compare.addEventListener('pointerdown', (e) => { compare.setPointerCapture(e.pointerId); setCompare(true); });
         ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((t) => compare.addEventListener(t, () => setCompare(false)));
-        this.#bindZoomGestures(h.onZoom, h.onPoint);
+        this.#bindZoomGestures(h.onZoom, h.onPoint, h.onTap);
         this.#els.zoomBar.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-zoom]');
             if (btn) h.onZoom(Number(btn.dataset.zoom));
@@ -123,8 +124,9 @@ export class CameraScreen {
     }
 
     // --- Zoom (boutons + pincement) ---
-    #bindZoomGestures(onZoom, onPoint) {
+    #bindZoomGestures(onZoom, onPoint, onTap) {
         const pointers = new Map();
+        let tap = null; // appui court d'un seul doigt sur l'image
         let startDistance = 0;
         let startZoom = 1;
         const { stage } = this.#els;
@@ -142,6 +144,7 @@ export class CameraScreen {
         };
         stage.addEventListener('pointerdown', (e) => {
             pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            tap = pointers.size === 1 && !e.target.closest('.zoom-bar, .gate, .pill') ? { x: e.clientX, y: e.clientY, at: performance.now() } : null;
             if (pointers.size === 2) { startDistance = distance(); startZoom = this.currentZoom; }
             else if (!e.target.closest('.zoom-bar, .gate')) emitPoint(e);
         });
@@ -151,7 +154,12 @@ export class CameraScreen {
             if (pointers.size === 2 && startDistance) onZoom(startZoom * (distance() / startDistance));
             else if (pointers.size === 1 && e.buttons && !e.target.closest('.zoom-bar, .gate')) emitPoint(e);
         });
-        const release = (e) => { pointers.delete(e.pointerId); startDistance = 0; };
+        const release = (e) => {
+            if (e.type === 'pointerup' && tap && performance.now() - tap.at < 350 && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 10) onTap?.();
+            tap = null;
+            pointers.delete(e.pointerId);
+            startDistance = 0;
+        };
         ['pointerup', 'pointercancel', 'pointerleave'].forEach((t) => stage.addEventListener(t, release));
         stage.addEventListener('wheel', (e) => {
             e.preventDefault();

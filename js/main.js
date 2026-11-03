@@ -403,6 +403,8 @@ function init() {
         },
         onCompare: (on) => renderer.setCompare(on),
         onZoom: setZoom,
+        // Appui sur l'image : replie le panneau (sauf si l'effet actif se déplace au doigt).
+        onTap: () => { if (!getEffect(getLook(settings.get().lookId).effect)?.usesCenter) panel.close(); },
         onPoint: (x, y) => {
             if (!getEffect(getLook(settings.get().lookId).effect)?.usesCenter) return;
             setDistortionCenter(x, y);

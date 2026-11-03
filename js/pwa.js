@@ -1,4 +1,4 @@
-import { PWA } from './config.js';
+import { APP, PWA } from './config.js';
 
 let installEvent = null;
 const listeners = new Set();
@@ -6,7 +6,7 @@ const listeners = new Set();
 /** Enregistre le service worker (hors-ligne). Sans effet si non supporté ou hors HTTPS/localhost. */
 export function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
-    navigator.serviceWorker.register(PWA.SW_PATH).catch((err) => console.warn('[pwa] service worker', err));
+    navigator.serviceWorker.register(`${PWA.SW_PATH}?v=${APP.VERSION}`).catch((err) => console.warn('[pwa] service worker', err));
 }
 
 window.addEventListener('beforeinstallprompt', (event) => {
