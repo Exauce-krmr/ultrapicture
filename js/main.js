@@ -278,11 +278,14 @@ async function capturePhoto() {
 
 async function savePhoto(canvas, s) {
     try {
+        // La vignette de la galerie se met à jour tout de suite ; l'encodage complet suit.
+        const thumb = await makeThumbnail(canvas);
+        screen.setThumbnail(thumb);
         const blob = await canvasToBlob(canvas, { format: s.photoFormat, quality: s.jpegQuality });
-        const record = { type: 'photo', blob, mime: blob.type || PHOTO_FORMATS[s.photoFormat].mime, width: canvas.width, height: canvas.height, createdAt: Date.now() };
+        const record = { type: 'photo', blob, thumb, mime: blob.type || PHOTO_FORMATS[s.photoFormat].mime, width: canvas.width, height: canvas.height, createdAt: Date.now() };
         try {
-            await store.add(record);
-            screen.setThumbnail(blob);
+            record.id = await store.add(record);
+            gallery.noteAdded(record);
             toast.show(MESSAGES.PHOTO_SAVED);
         } catch (err) {
             console.error('[store]', err);
@@ -343,7 +346,8 @@ async function stopRecording() {
         const [thumb, { blob, durationMs }] = await Promise.all([thumbPromise, stopped]);
         const record = { type: 'video', blob, thumb, mime: blob.type, ...size, durationMs, createdAt: Date.now() };
         try {
-            await store.add(record);
+            record.id = await store.add(record);
+            gallery.noteAdded(record);
             screen.setThumbnail(thumb);
             toast.show(MESSAGES.VIDEO_SAVED);
         } catch (err) {

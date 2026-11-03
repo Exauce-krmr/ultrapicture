@@ -288,3 +288,8 @@ button, .cell { -webkit-touch-callout: none; }
 .adjust-slider input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .22); }
 .adjust-slider input[type="range"]::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent); }
 .chip--adjust[aria-selected="true"].is-modified::after { display: none; }
+
+/* ===== Suppression immédiate + « Annuler » ===== */
+.snack { position: absolute; left: 12px; right: 12px; bottom: calc(var(--safe-bottom) + 96px); z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 6px 4px 18px; min-height: 56px; border-radius: 16px; background: #2a2d35; box-shadow: 0 6px 24px rgba(0, 0, 0, .5); animation: view-in .15s ease-out; }
+.snack-btn { min-height: 48px; padding: 0 18px; border-radius: 12px; color: var(--accent); font-weight: 700; }
+.snack-btn:active { background: rgba(255, 255, 255, .08); }

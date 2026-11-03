@@ -101,7 +101,9 @@ export class CameraScreen {
         timer.addEventListener('click', h.onTimer);
         ratio.addEventListener('click', h.onRatio);
         settings.addEventListener('click', h.onSettings);
-        shutter.addEventListener('click', h.onShutter);
+        // Réaction au toucher (pas au relâchement) ; « click » reste pour le clavier et les lecteurs d'écran.
+        shutter.addEventListener('pointerdown', (e) => { if (e.button === 0) { e.preventDefault(); h.onShutter(); } });
+        shutter.addEventListener('click', (e) => { if (e.detail === 0) h.onShutter(); });
         flip.addEventListener('click', h.onFlip);
         gallery.addEventListener('click', h.onGallery);
         modes.addEventListener('click', (e) => {

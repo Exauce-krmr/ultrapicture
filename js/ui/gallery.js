@@ -12,11 +12,12 @@ export class Gallery {
     #grid = $('#gallery-grid');
     #viewer = $('#viewer');
     #items = [];
+    #loaded = false; // la liste est gardée en mémoire : plus de relecture complète à chaque ouverture ou suppression
+    #cells = new Map();
+    #pending = null; // suppression en attente d'être confirmée (annulable)
     #urls = [];
     #index = 0;
     #viewerUrl = null;
-    #deleteTimer = 0;
-    #deleteArmed = false;
 
     /** @param {{store: import('../services/media-store.js').MediaStore, onChange: Function, onError: Function}} deps */
     constructor({ store, onChange, onError }) {
@@ -36,6 +37,9 @@ export class Gallery {
             if (e.key === 'ArrowRight') this.#show(this.#index + 1);
             if (e.key === 'Escape') this.closeViewer();
         });
+        $('#snack-undo').addEventListener('click', () => this.#undo());
+        // Si l'application part en arrière-plan, la suppression en attente devient définitive tout de suite.
+        document.addEventListener('visibilitychange', () => { if (document.hidden) this.#commitPending(); });
     }
 
     get isOpen() { return !this.#root.hidden; }
@@ -43,7 +47,14 @@ export class Gallery {
 
     async open() {
         this.#root.hidden = false;
-        await this.refresh();
+        if (this.#loaded) this.#renderAll(); else await this.refresh();
+    }
+
+    /** Ajoute un média qui vient d'être enregistré, sans relire la base. */
+    noteAdded(record) {
+        if (!this.#loaded) return;
+        this.#items.unshift(record);
+        if (this.isOpen) this.#renderAll();
     }
 
     close() {
@@ -56,7 +67,6 @@ export class Gallery {
     closeViewer() {
         this.#viewer.hidden = true;
         this.#clearViewerMedia();
-        this.#disarmDelete();
     }
 
     async refresh() {
@@ -67,25 +77,36 @@ export class Gallery {
             this.#onError(err);
             this.#items = [];
         }
+        this.#loaded = true;
+        this.#renderAll();
+    }
+
+    #renderAll() {
         this.#revokeUrls();
         this.#renderGrid();
-        $('#gallery-count').textContent = this.#items.length ? `(${this.#items.length})` : '';
-        $('#gallery-empty').hidden = this.#items.length > 0;
+        this.#updateCount();
         this.#onChange(this.#items);
     }
 
+    #updateCount() {
+        $('#gallery-count').textContent = this.#items.length ? `(${this.#items.length})` : '';
+        $('#gallery-empty').hidden = this.#items.length > 0;
+    }
+
     #renderGrid() {
+        this.#cells.clear();
         this.#grid.replaceChildren(
-            ...this.#items.map((item, index) => {
+            ...this.#items.map((item) => {
                 const url = URL.createObjectURL(item.thumb ?? item.blob);
                 this.#urls.push(url);
-                const cell = el('button', { class: 'cell', type: 'button', 'aria-label': `${item.type === 'video' ? 'Vidéo' : 'Photo'} du ${formatDate(item.createdAt)}`, onClick: () => this.#show(index) },
+                const cell = el('button', { class: 'cell', type: 'button', 'aria-label': `${item.type === 'video' ? 'Vidéo' : 'Photo'} du ${formatDate(item.createdAt)}`, onClick: () => this.#show(this.#items.indexOf(item)) },
                     el('img', { src: url, alt: '', loading: 'lazy' }));
                 if (item.type === 'video') {
                     const badge = el('span', { class: 'cell-badge' });
                     badge.innerHTML = `${icon('play')}<span>${formatDuration(item.durationMs ?? 0)}</span>`;
                     cell.append(badge);
                 }
+                this.#cells.set(item, cell);
                 return cell;
             }),
         );
@@ -94,7 +115,6 @@ export class Gallery {
     #show(index) {
         if (index < 0 || index >= this.#items.length) return;
         this.#index = index;
-        this.#disarmDelete();
         this.#clearViewerMedia();
 
         const item = this.#items[index];
@@ -125,34 +145,46 @@ export class Gallery {
         }
     }
 
-    /** Suppression en deux temps : le premier appui demande confirmation. */
-    async #delete() {
-        const label = $('#viewer-delete-label');
-        if (!this.#deleteArmed) {
-            this.#deleteArmed = true;
-            label.textContent = 'Confirmer';
-            $('#viewer-delete').classList.add('is-armed');
-            this.#deleteTimer = setTimeout(() => this.#disarmDelete(), CONFIG.DELETE_CONFIRM_MS);
-            return;
-        }
-        this.#disarmDelete();
-        const { id } = this.#items[this.#index];
-        try {
-            await this.#store.remove(id);
-        } catch (err) {
-            this.#onError(err);
-            return;
-        }
-        const next = Math.min(this.#index, this.#items.length - 2);
-        await this.refresh();
+    /**
+     * Suppression immédiate (l'écran réagit tout de suite) avec « Annuler » pendant quelques secondes ;
+     * l'effacement dans la base n'a lieu qu'ensuite, en arrière-plan.
+     */
+    #delete() {
+        const item = this.#items[this.#index];
+        if (!item) return;
+        this.#commitPending();
+        const index = this.#index;
+        this.#items.splice(index, 1);
+        this.#cells.get(item)?.remove();
+        this.#cells.delete(item);
+        this.#pending = { item, index, timer: setTimeout(() => this.#commitPending(), CONFIG.UNDO_MS) };
+        $('#snack-text').textContent = item.type === 'video' ? 'Vidéo supprimée' : 'Photo supprimée';
+        $('#snack').hidden = false;
+        this.#updateCount();
+        this.#onChange(this.#items);
+        const next = Math.min(index, this.#items.length - 1);
         if (next >= 0) this.#show(next); else this.closeViewer();
     }
 
-    #disarmDelete() {
-        clearTimeout(this.#deleteTimer);
-        this.#deleteArmed = false;
-        $('#viewer-delete-label').textContent = 'Supprimer';
-        $('#viewer-delete').classList.remove('is-armed');
+    #undo() {
+        const pending = this.#pending;
+        if (!pending) return;
+        clearTimeout(pending.timer);
+        this.#pending = null;
+        $('#snack').hidden = true;
+        this.#items.splice(pending.index, 0, pending.item);
+        this.#renderAll();
+        if (this.isViewerOpen) this.#show(pending.index);
+    }
+
+    /** Rend la suppression en attente définitive (délai écoulé, nouvelle suppression, mise en arrière-plan). */
+    #commitPending() {
+        const pending = this.#pending;
+        if (!pending) return;
+        clearTimeout(pending.timer);
+        this.#pending = null;
+        $('#snack').hidden = true;
+        this.#store.remove(pending.item.id).catch((err) => { console.error('[gallery] suppression', err); this.#onError(err); });
     }
 
     #revokeUrls() {

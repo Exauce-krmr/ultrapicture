@@ -1,6 +1,6 @@
 // Toutes les valeurs ajustables de l'application sont ici.
 
-export const APP = Object.freeze({ NAME: 'UltraPicture', VERSION: '9' });
+export const APP = Object.freeze({ NAME: 'UltraPicture', VERSION: '10' });
 
 /** Progressive Web App : chemin relatif pour fonctionner aussi sous un sous-dossier (GitHub Pages). */
 export const PWA = Object.freeze({ SW_PATH: 'sw.js' });
@@ -45,7 +45,8 @@ export const CONFIG = Object.freeze({
 
     HAPTIC_MS: 18,
     TOAST_MS: 2600,
-    DELETE_CONFIRM_MS: 3000,
+    /** Délai pendant lequel une suppression peut être annulée avant d'être définitive. */
+    UNDO_MS: 5000,
     LOCALE: 'fr-CH',
 
     PIXELATE_BLOCK_RATIO: 0.025,
